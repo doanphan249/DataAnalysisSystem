@@ -1,0 +1,25 @@
+{
+  "description": "Điều chỉnh riêng để khớp mẫu G:/Dashboard/DuLieuBaoCao.xlsx khảo sát 18/09/2026. Không phải quy tắc suy diễn cho tháng mới.",
+  "plan_prices": [
+    {
+      "year": 2026,
+      "month": 8,
+      "metric": "Giá bông đưa vào sản xuất",
+      "expected_source": 18.4,
+      "replacement": 1.84,
+      "reason": "Mẫu sửa giá tháng T8 thành 1.84. Giữ lũy kế 3.84 theo mẫu để có thể đối chiếu; phải rà soát nghiệp vụ riêng."
+    }
+  ],
+  "contract_dates": [
+    {"year": 2026, "month": 6, "origin": "Mỹ", "quantity": 300, "price": 1.97, "expected_source": "Bông Mỹ", "date": "2026-06-15", "reason": "Ngày bổ sung trong mẫu, chưa xác nhận từ chứng từ nguồn."},
+    {"year": 2026, "month": 6, "origin": "Brazil", "quantity": 278, "price": 1.925, "expected_source": "Bông Brazil", "date": "2026-06-15", "reason": "Ngày bổ sung trong mẫu, chưa xác nhận từ chứng từ nguồn."}
+  ],
+  "inventory_zero_errors": {
+    "year": 2026,
+    "month": 1,
+    "sheet": "2a. HTK NL",
+    "cells": ["J21", "K21", "L21", "J23", "K23", "L23", "J26", "J27", "J28", "K28", "L28", "J29", "K29", "L29", "J30"],
+    "expected_error": "#REF!",
+    "reason": "Ngoại lệ đã có trong quy trình cũ: tồn trên 3 tháng T1 không phát sinh; chỉ dùng khi thành tiền M của cùng hàng bằng 0."
+  }
+}

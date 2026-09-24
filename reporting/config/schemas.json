@@ -1,0 +1,135 @@
+{
+  "KyQuanTri": [
+    "Ky",
+    "KyQuanTri"
+  ],
+  "DonViNhaMay": [
+    "MaDonVi",
+    "NhaMay"
+  ],
+  "HieuQuaSanXuat": [
+    "ChiTieu",
+    "Ky",
+    "KeHoach",
+    "ThucHien"
+  ],
+  "ThongTinNhaMay": [
+    "NhaMay",
+    "Ky",
+    "ThongTinSanXuat",
+    "GiaTri"
+  ],
+  "KetQuaSanXuat": [
+    "MaDonVi",
+    "ChiTieu",
+    "NhomChiPhi",
+    "NhomPhi",
+    "Ky",
+    "GiaTri"
+  ],
+  "KetQuaSanXuatNhaMay": [
+    "ChiTieu",
+    "NhaMay",
+    "Ky",
+    "GiaTri"
+  ],
+  "SanLuongSanXuat": [
+    "MatHang",
+    "TheoNguyenLieu",
+    "TheoLoaiSoi",
+    "LoaiChai",
+    "ChiSoSoi",
+    "NhaMay",
+    "Ky",
+    "SanLuong"
+  ],
+  "VatTuPhuTung": [
+    "CongDoan",
+    "NhaMay",
+    "Ky",
+    "GiaTri"
+  ],
+  "Dien": [
+    "NhaMay",
+    "NoiDung",
+    "Ky",
+    "SanLuongDienTieuThu",
+    "ThanhTien"
+  ],
+  "TonKhoNguyenLieu": [
+    "Ky",
+    "LoaiTonKho",
+    "ChiTiet",
+    "SoLuongTan",
+    "GiaTri"
+  ],
+  "TonKhoNguyenLieuChiTiet": [
+    "Ky",
+    "LoaiTonKho",
+    "NguonGoc",
+    "ChiTietTonKho",
+    "SoLuongTan",
+    "DonGiaUSDkg",
+    "ThanhTienDong"
+  ],
+  "TonKhoThanhPham": [
+    "Ky",
+    "LoaiSoi",
+    "XuatBanTrongThang",
+    "TonCuoiThang",
+    "GiaTriTonDong"
+  ],
+  "TieuThuSoi": [
+    "Ky",
+    "LoaiSoi",
+    "MatHang",
+    "GiaCIFUSDkg",
+    "IPI",
+    "UPercent"
+  ],
+  "PhanTichTieuThu": [
+    "Ky",
+    "QuocGia",
+    "KenhTieuThu",
+    "DoanhSoDong"
+  ],
+  "TongHopKQBanHang": [
+    "Nam",
+    "Ky",
+    "ChiTieu",
+    "GiaTri"
+  ],
+  "PheLieuThanhLy": [
+    "Ky",
+    "LoaiPhe",
+    "SoLuong",
+    "GiaTri"
+  ],
+  "HDBong": [
+    "Ky",
+    "NgayHopDongPLHD",
+    "SoLuongTan",
+    "DonGiaUSDkg",
+    "ThanhTienUSD"
+  ],
+  "CongNoPhaiThu": [
+    "Ky",
+    "QuocGia",
+    "KenhTieuThu",
+    "SanLuongBanHang",
+    "DoanhSoThangDong",
+    "DoanhSoLuyKeDong",
+    "TrongHan",
+    "QuaHanDuoi6T",
+    "QuaHan6Den12T",
+    "QuaHan12Den24T",
+    "QuaHan24Den36T",
+    "QuaHanTren36T"
+  ],
+  "TaiChinhNhaMay": [
+    "NhaMay",
+    "Ky",
+    "ChiTieu",
+    "GiaTri"
+  ]
+}

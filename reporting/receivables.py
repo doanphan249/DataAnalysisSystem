@@ -54,6 +54,7 @@ def _values(source, row, columns, strict):
 DOMESTIC = ('Việt Nam', 'Nội địa')
 ONSITE = ('Xuất khẩu tại chỗ', 'Xuất khẩu')
 VALUE_NAMES = (*MAIN_HEADERS, *AGING_HEADERS)
+CARRY_FORWARD_NAMES = ('DoanhSoLuyKeDong', 'SoDu', *AGING_HEADERS)
 
 
 def _convert(values):
@@ -168,20 +169,35 @@ def assemble(months, report):
                         f'thêm {sorted(names - previous_names)}.', location_base)
         previous_names = names
         totals = dict.fromkeys(VALUE_NAMES, 0)
+        carried_forward = dict.fromkeys(CARRY_FORWARD_NAMES, 0)
         for segment in active:
             if segment in month['segments']:
                 values, location = month['segments'][segment]
                 output = _convert(values)
             else:
                 prior = previous.get(segment)
-                if prior and (prior['DoanhSoLuyKeDong'] or prior['SoDu']):
-                    raise DataError(f'{period} thiếu dòng nước {segment[0]} đã có lũy kế/số dư ở tháng trước; '
-                                    f'không thể giả định bằng 0: {location_base}')
                 output = dict.fromkeys(VALUE_NAMES, 0)
                 location = f'{location_base} (không có dòng {segment[0]}; ghi 0)'
-                report.warn('RECEIVABLE_COUNTRY_ROW_MISSING',
-                            f'{period}: form không có dòng {segment[0]}; tháng trước không có lũy kế/số dư, ghi 0.',
-                            location)
+                prior_values = {
+                    name: prior[name] for name in CARRY_FORWARD_NAMES
+                } if prior else {}
+                if any(prior_values.values()):
+                    output.update(prior_values)
+                    carried_forward.update({
+                        name: carried_forward[name] + prior_values[name]
+                        for name in CARRY_FORWARD_NAMES
+                    })
+                    report.warn(
+                        'RECEIVABLE_COUNTRY_ROW_CARRIED_FORWARD',
+                        f'{period}: thiếu dòng {segment[0]}; phát sinh tháng bằng 0, '
+                        'giữ nguyên lũy kế doanh số và số dư/tuổi nợ kỳ trước. '
+                        f'Tổng nguồn tháng này không có dòng chuyển tiếp: {prior_values}.',
+                        location,
+                    )
+                else:
+                    report.warn('RECEIVABLE_COUNTRY_ROW_MISSING',
+                                f'{period}: form không có dòng {segment[0]}; tháng trước không có lũy kế/số dư, ghi 0.',
+                                location)
             previous[segment] = output
             for name in VALUE_NAMES:
                 totals[name] += output[name]
@@ -193,8 +209,9 @@ def assemble(months, report):
         # (tiền: sai số làm tròn tối đa 1 đồng mỗi dòng).
         for name in VALUE_NAMES:
             tolerance = TOLERANCE if name == 'SanLuongBanHang' else len(active)
-            report.check(f'{period}/Công nợ/{name}/tổng dòng xuất = TỔNG CỘNG', totals[name],
-                         month['total'][name], tolerance, location_base)
+            expected = month['total'][name] + carried_forward.get(name, 0)
+            report.check(f'{period}/Công nợ/{name}/tổng dòng xuất = TỔNG CỘNG + chuyển tiếp',
+                         totals[name], expected, tolerance, location_base)
 
 
 def _compare_sales_summary(source, report, output, row, columns):

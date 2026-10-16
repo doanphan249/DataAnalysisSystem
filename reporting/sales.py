@@ -72,8 +72,7 @@ def _waste(source, report):
 
 
 def _contracts(source, report, overrides, apply_overrides):
-    """Ghi chú triển khai:
-- Hàng hợp đồng phải có STT số để không nhập ghi chú cuối trang."""
+    """Đọc các dòng có dữ liệu hợp đồng, kể cả khi STT là dấu tiếp diễn."""
     sheet = '4. HD bong'
     sh = source.sheet(sheet)
     headings = [source.find(sheet, name, 3) for name in ['Ghi giảm kỳ trước', 'Phát sinh trong kỳ']]
@@ -82,9 +81,6 @@ def _contracts(source, report, overrides, apply_overrides):
         end = headings[index + 1] if index == 0 else sh.max_row + 1
         total_qty = total_amount = 0.0
         for row in range(start + 1, end):
-            seq = sh.cell(row, 1).value
-            if not isinstance(seq, (int, float)):
-                continue
             qty = source.number(sheet, row, 5, blank_zero=True)
             amount = source.number(sheet, row, 7, blank_zero=True)
             if qty == 0 and amount == 0:
@@ -165,17 +161,29 @@ def assemble_country_sales(months, report):
             segment = (country, channel)
             if country == 'Việt Nam' and channel == 'Nội địa':
                 values = month['domestic']
+                qty, amount, cumulative = values
+                cumulative_dong = dong(cumulative)
             elif country == 'Xuất khẩu tại chỗ':
                 values = month['onsite']
+                qty, amount, cumulative = values
+                cumulative_dong = dong(cumulative)
             else:
                 if country not in month['countries'] and (quantities[segment] or previous[segment]):
-                    raise DataError(f"T{month['month']} thiếu dòng nước {country} đã phát sinh trước đó; không thể giả định lũy kế bằng 0.")
-                values = month['countries'].get(country, (0, 0, 0))
-            qty, amount, cumulative = values
+                    qty, amount, cumulative_dong = 0, 0, previous[segment]
+                    report.warn(
+                        'SALES_COUNTRY_ROW_CARRIED_FORWARD',
+                        f"T{month['month']}: thiếu dòng nước {country}; phát sinh tháng bằng 0 "
+                        'và giữ nguyên lũy kế trước. Tổng nguồn tháng này không có dòng chuyển tiếp.',
+                        month['source'],
+                    )
+                else:
+                    values = month['countries'].get(country, (0, 0, 0))
+                    qty, amount, cumulative = values
+                    cumulative_dong = dong(cumulative)
             quantities[segment] = rounded(quantities[segment] + qty, 6)
-            difference = dong(cumulative) - previous[segment] - dong(amount)
+            difference = cumulative_dong - previous[segment] - dong(amount)
             if abs(difference) > 1:
                 report.warn('SALES_CUMULATIVE_ADJUSTMENT', f"T{month['month']} {country}/{channel}: lũy kế nguồn khác lũy kế trước + tháng {difference:,.0f} đồng. Giữ lũy kế nguồn.", month['source'])
-            for ky, value in [(f"T{month['month']}", dong(amount)), (f"LK{month['month']}T", dong(cumulative))]:
+            for ky, value in [(f"T{month['month']}", dong(amount)), (f"LK{month['month']}T", cumulative_dong)]:
                 report.add('PhanTichTieuThu', [ky, country, channel, value], month['source'])
-            previous[segment] = dong(cumulative)
+            previous[segment] = cumulative_dong

@@ -77,7 +77,7 @@ G:\DOAN\MonthlyReportingData\
 │   ├── Form BC QTSX T02.26.xlsx
 │   └── Form BC KQ Tieu thu T02.26.xlsx
 ...
-└── BCQT_082026\
+└── BCQT_092026\
     ├── Phú Hưng- Form BC QTSX T08.26.xlsx
     └── Phú Hưng- Form BC KQ Tieu thu T08.26.xlsx
 ```
@@ -247,15 +247,15 @@ Nguồn: file `KQ Tieu thu` từng tháng, sheet `2. Phai thu`. Bảng Excel `Co
 
 `Ky, QuocGia, KenhTieuThu, SanLuongBanHang, DoanhSoThangDong, DoanhSoLuyKeDong, TrongHan, QuaHanDuoi6T, QuaHan6Den12T, QuaHan12Den24T, QuaHan24Den36T, QuaHanTren36T`
 
-- Đọc đủ 8 tháng rồi mới ghi. Mỗi tháng có đủ **cùng một danh sách**: `Việt Nam/Nội địa` (dòng nhóm Thị trường nội địa, gộp khách hàng nội bộ và khác), mọi nước `…/Xuất khẩu` có ít nhất một số khác 0 (sản lượng, doanh số, lũy kế, số dư hoặc tuổi nợ) ở **bất kỳ tháng nào** trong năm, và `Xuất khẩu tại chỗ/Xuất khẩu` (XKTC). Tên nước/kênh theo quy ước `PhanTichTieuThu`.
-- Nước không phát sinh trong tháng vẫn có dòng giá trị 0. Ví dụ Nhật Bản bán lần đầu T3 vẫn có dòng T1, T2; Malaysia T2 chỉ có số dư mang sang từ năm trước, T3 bằng 0, T4 có bán. Dữ liệu 2026 T1–T8: 9 nước/kênh × 8 tháng = 72 dòng.
-- Form bị thêm/bớt dòng nước giữa các tháng (Macau có đến T5, bỏ từ T6) được ghi `RECEIVABLE_COUNTRY_LIST_CHANGED`. Nếu form tháng sau không còn dòng của nước đã có lũy kế/số dư thì dừng; nếu tháng trước bằng 0 thì ghi 0 kèm `RECEIVABLE_COUNTRY_ROW_MISSING`.
+- Đọc tất cả tháng nguồn liên tục từ T1 rồi mới ghi. Mỗi tháng đầu ra có đủ **cùng một danh sách**: `Việt Nam/Nội địa` (dòng nhóm Thị trường nội địa, gộp khách hàng nội bộ và khác), mọi nước `…/Xuất khẩu` có ít nhất một số khác 0 (sản lượng, doanh số, lũy kế, số dư hoặc tuổi nợ) ở **bất kỳ tháng nào** trong năm, và `Xuất khẩu tại chỗ/Xuất khẩu` (XKTC). Tên nước/kênh theo quy ước `PhanTichTieuThu`.
+- Nước không phát sinh trong tháng vẫn có dòng. Nếu nước vắng mặt nhưng tháng trước đã có lũy kế doanh số hoặc số dư, phát sinh tháng được ghi 0 và lũy kế/số dư cùng các nhóm tuổi nợ được giữ từ tháng trước; cảnh báo `SALES_COUNTRY_ROW_CARRIED_FORWARD` và `RECEIVABLE_COUNTRY_ROW_CARRIED_FORWARD` ghi rõ việc chuyển tiếp. Nếu tháng trước chưa có giá trị, ghi 0 kèm `RECEIVABLE_COUNTRY_ROW_MISSING`.
+- Form bị thêm/bớt dòng nước giữa các tháng (Macau có đến T5, bỏ từ T6) được ghi `RECEIVABLE_COUNTRY_LIST_CHANGED`. T9/2026 không có dòng Singapore nên chương trình giữ lũy kế Singapore từ T8, đồng thời ghi cảnh báo về giá trị chuyển tiếp không có trong tổng nguồn tháng T9.
 - Tên nước sửa chính tả giữa các tháng được chuẩn hóa trong `COUNTRY_ALIASES` (`reporting/common.py`), dùng chung với `PhanTichTieuThu`: `Thổ Nhỹ Kỳ` (T1–T5) → `Thổ Nhĩ Kỳ` (cảnh báo `COUNTRY_NAME_ALIAS`). Thêm cặp mới vào đây khi form đổi tên nước.
 - Dòng có số nhưng mất STT sẽ dừng, không bỏ sót.
 - Không xuất dòng TỔNG CỘNG hoặc dòng nhóm xuất khẩu: cộng các dòng trong BI ra đúng tổng nguồn, không trùng; chương trình kiểm tra điều này cho từng tháng.
 - Sản lượng: tấn, tối đa 6 chữ số thập phân. Tiền (doanh số, 6 nhóm tuổi nợ): nguồn triệu đồng × 1.000.000, làm tròn về **đồng nguyên** như các sheet khác.
 - Tìm cột theo tiêu đề hàng `Diễn giải` và hàng phân loại tuổi nợ; đổi tiêu đề, thiếu số ở dòng tổng/nhóm hoặc trùng tên nước sẽ dừng.
-- Dừng nếu: số dư công nợ ≠ tổng 6 nhóm tuổi nợ; tổng cộng ≠ nội địa + xuất khẩu; dòng nhóm ≠ tổng khách hàng/nước (+ XKTC) ở mọi cột. Nguồn chỉ chia nước ở cột Trong hạn, nên nếu có nợ quá hạn mà không chia theo nước, chương trình sẽ dừng thay vì gán sai nước.
+- Dừng nếu: số dư công nợ ≠ tổng 6 nhóm tuổi nợ; tổng cộng ≠ nội địa + xuất khẩu; dòng nhóm nguồn ≠ tổng chi tiết nguồn. Khi chuyển tiếp nước không còn dòng, tổng đầu ra được đối chiếu với tổng nguồn cộng phần chuyển tiếp và nhật ký cảnh báo rằng tổng nguồn không có phần đó. Nguồn chỉ chia nước ở cột Trong hạn, nên nếu có nợ quá hạn mà không chia theo nước, chương trình sẽ dừng thay vì gán sai nước.
 - Chỉ cảnh báo: lệch với `1. KQ SXKD` (`RECEIVABLE_SALES_MISMATCH`); số dư công nợ bằng đúng doanh số tháng (`RECEIVABLE_EQUALS_MONTHLY_SALES`). Lũy kế doanh số có điều chỉnh đã được cảnh báo theo từng nước/kênh bằng `SALES_CUMULATIVE_ADJUSTMENT` (cùng ô nguồn với `PhanTichTieuThu`).
 
 ### Sheet TaiChinhNhaMay và tiêu hao nguyên liệu trong ThongTinNhaMay (bổ sung 24/09/2026)
@@ -336,16 +336,16 @@ Không cần cài thêm thư viện. Tại thư mục `G:\DOAN`:
 
 Bộ kiểm thử kiểm tra: thiếu tháng, trùng file, nhiều năm, file khóa Excel, khóa dữ liệu trùng, lỗi Excel, công thức chưa được tính/lưu, số âm, phân loại sản phẩm, chuỗi bắt đầu bằng dấu `=`, giữ file cũ khi lỗi ghi và dữ liệu công thức đã lưu.
 
-Kiểm thử tích hợp dùng bộ nguồn T1–T8/2026 tại `MonthlyReportingData` và file đối chứng `D:\Dashboard\DuLieuBaoCao.xlsx`. Nếu một trong hai không có, phần kiểm thử tích hợp được bỏ qua (`skipped`), các kiểm thử còn lại vẫn chạy. Có thể chỉ định mẫu đối chứng khác **cùng bộ T1–T8/2026**:
+Kiểm thử tích hợp dùng bộ nguồn T1–T8/2026 tại `MonthlyReportingData` và file đối chứng `D:\Dashboard\DuLieuBaoCao.xlsx`. Phần này chỉ chạy khi bộ nguồn đúng T1–T8 và có file đối chứng cùng kỳ; nếu thêm tháng mới như T9, các kiểm thử đối chiếu mẫu sẽ tự bỏ qua (`skipped`). Muốn so sánh tháng mới, cần cập nhật file mẫu và các kỳ vọng số dòng tương ứng. Các kiểm thử tự động nhận diện tháng 1–10 và xử lý dòng nguồn thiếu vẫn chạy bình thường. Có thể chỉ định mẫu đối chứng khác **cùng bộ T1–T8/2026**:
 
 ```powershell
 $env:REPORT_REFERENCE_FILE = "D:\Mau\DuLieuBaoCao.xlsx"
 .\.venv\Scripts\python.exe -m unittest discover -s src/tests -v
 ```
 
-Phần tích hợp là kiểm thử hồi quy cho bộ T1–T8 đã học; khi bạn thêm T9 hoặc sửa số liệu nguồn, cần cập nhật bộ đối chứng/kiểm thử tích hợp tương ứng. Chương trình chạy chính không giới hạn ở T8.
+Phần tích hợp là kiểm thử hồi quy cho bộ T1–T8 đã học; khi bạn thêm T9 hoặc sửa số liệu nguồn, hãy cập nhật file đối chứng nếu muốn tiếp tục chạy so sánh toàn bộ workbook. Chương trình chạy chính tự nhận tháng mới từ thư mục nguồn, không giới hạn ở T8.
 
-Kết quả đã kiểm tra trên bộ hiện tại: **32 bài kiểm thử đạt**. Toàn bộ **19 sheet dữ liệu / 2.822 dòng** khớp mẫu theo tiêu đề, **thứ tự dòng** và tên bảng Excel, sau chuẩn hóa sai số số thực tới 6 chữ số thập phân; riêng 8 ô nửa đồng của `TaiChinhNhaMay` lệch 1 đồng như nêu ở mục 7. Danh sách mặt hàng ở `GhiChu` khớp mẫu. Cột phân loại và thành tiền có cả công thức lẫn giá trị đã lưu. Chưa kiểm tra việc Excel tự tính lại sau khi người dùng sửa trực tiếp ô đầu ra; dữ liệu được kiểm chứng bằng tính toán Python, kiểm soát nguồn và đọc lại workbook đã lưu.
+Kiểm thử đối chiếu toàn workbook chỉ có ý nghĩa khi file mẫu và bộ nguồn cùng số tháng. Cột phân loại và thành tiền trong file xuất có cả công thức lẫn giá trị đã lưu. Chưa kiểm tra việc Excel tự tính lại sau khi người dùng sửa trực tiếp ô đầu ra; dữ liệu được kiểm chứng bằng tính toán Python, kiểm soát nguồn và đọc lại workbook đã lưu.
 
 ## 11. Xử lý lỗi thường gặp
 

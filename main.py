@@ -3,8 +3,8 @@ from pathlib import Path
 import sys
 
 # ================= CẤU HÌNH BẠN CÓ THỂ THAY ĐỔI =================
-SOURCE_FOLDER = Path(r"D:\DOAN\MonthlyReportingData")
-OUTPUT_FILE = Path(r"D:\DOAN\DataBase\DuLieuBaoCao_TongHop1.xlsx")
+SOURCE_FOLDER = Path(r"D:\Dashboard\MonthlyReportingData")
+OUTPUT_FILE = Path(r"D:\Dashboard\DuLieuBaoCao_TongHop1.xlsx")
 
 # None: tự nhận diện nếu nguồn chỉ có một năm. Có nhiều năm: ghi năm cần lấy.
 REPORT_YEAR: int | None = None

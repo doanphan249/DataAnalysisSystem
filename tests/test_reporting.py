@@ -1,5 +1,6 @@
 """Chạy: python -m unittest discover -s src/tests -v (không cần cài pytest)."""
 import contextlib
+from datetime import datetime
 import io
 import json
 import os
@@ -19,7 +20,7 @@ from reporting.sources import discover, Source
 from reporting.pipeline import load_config, run_report
 from reporting.excel_writer import write_report
 from reporting.validation import validate
-from reporting import receivables, sales_summary
+from reporting import receivables, sales, sales_summary
 
 
 class DiscoveryTests(unittest.TestCase):
@@ -52,6 +53,12 @@ class DiscoveryTests(unittest.TestCase):
     def test_lock_file_ignored(self):
         self.month(1)
         self.assertEqual(len(discover(self.root, None)), 1)
+
+    def test_new_months_are_discovered_without_code_changes(self):
+        for month in range(1, 11):
+            self.month(month)
+        self.assertEqual([item.month for item in discover(self.root, None)],
+                         list(range(1, 11)))
 
     def test_year_must_be_selected_when_ambiguous(self):
         self.month(1, 2026)
@@ -102,6 +109,34 @@ class DataTests(unittest.TestCase):
                 with self.assertRaisesRegex(DataError, 'chưa có giá trị'):
                     source.number('Test', 1, 1, blank_zero=True)
 
+    def test_contract_rows_with_continuation_marker_are_included(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'source.xlsx'
+            with xlsxwriter.Workbook(path) as workbook:
+                sheet = workbook.add_worksheet('4. HD bong')
+                sheet.write(6, 2, 'Ghi giảm kỳ trước')
+                sheet.write_number(6, 4, 0)
+                sheet.write_number(6, 6, 0)
+                sheet.write(9, 2, 'Phát sinh trong kỳ')
+                sheet.write_number(9, 4, 300)
+                sheet.write_number(9, 6, 570000)
+                date_format = workbook.add_format({'num_format': 'yyyy-mm-dd'})
+                for row, seq, quantity in [(10, 1, 100), (11, '…', 200)]:
+                    sheet.write(row, 0, seq)
+                    sheet.write_datetime(row, 2, datetime(2026, 9, 30), date_format)
+                    sheet.write(row, 3, 'Brazil')
+                    sheet.write_number(row, 4, quantity)
+                    sheet.write_number(row, 5, 1.9)
+                    sheet.write_number(row, 6, quantity * 1000 * 1.9)
+
+            report = Report(load_config('schemas.json'))
+            with Source(path, 2026, 9, report) as source:
+                sales._contracts(source, report, {'contract_dates': []}, False)
+
+            self.assertEqual([row[2] for row in report.rows['HDBong']], [100, 200])
+            self.assertEqual(len(report.checks), 6)
+            self.assertTrue(all(check['passed'] for check in report.checks))
+
     def test_atomic_failure_preserves_old_file(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / 'output.xlsx'
@@ -142,8 +177,16 @@ SOURCE = ROOT / 'MonthlyReportingData'
 REFERENCE = Path(os.environ.get('REPORT_REFERENCE_FILE', 'D:/Dashboard/DuLieuBaoCao.xlsx'))
 
 
-@unittest.skipUnless(SOURCE.exists() and REFERENCE.exists(),
-                     'Kiểm tra đối chiếu cần bộ nguồn gốc và file mẫu (REPORT_REFERENCE_FILE).')
+def _reference_matches_source_months():
+    if not SOURCE.is_dir() or not REFERENCE.is_file():
+        return False
+    source_months = [month for month in range(1, 13)
+                     if (SOURCE / f'BCQT_{month:02d}2026').is_dir()]
+    return source_months == list(range(1, 9))
+
+
+@unittest.skipUnless(_reference_matches_source_months(),
+                     'Kiểm tra đối chiếu cần file mẫu cùng bộ nguồn T1–T8/2026.')
 class IntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -316,11 +359,17 @@ class ReceivableAssembleTests(unittest.TestCase):
         self.assertEqual(rows['T1', 'Malaysia'][3], 200000)
         self.assertEqual(rows['T2', 'Malaysia'], [0] * 9)
 
-    def test_missing_row_with_prior_cumulative_is_error(self):
-        months = [self.month(1, {'Macau': dict(DoanhSoThangDong=2, DoanhSoLuyKeDong=2)}),
+    def test_missing_row_carries_forward_cumulative_and_balance(self):
+        months = [self.month(1, {'Macau': dict(DoanhSoThangDong=2, DoanhSoLuyKeDong=2,
+                                                SoDu=0.5, TrongHan=0.5)}),
                   self.month(2, {})]
-        with self.assertRaisesRegex(DataError, 'thiếu dòng nước Macau'):
-            self.assemble(months)
+        report, rows = self.assemble(months)
+        self.assertEqual(rows['T2', 'Macau'], [0, 0, 2000000, 500000, 0, 0, 0, 0, 0])
+        self.assertTrue(any(
+            warning['code'] == 'RECEIVABLE_COUNTRY_ROW_CARRIED_FORWARD'
+            for warning in report.warnings
+        ))
+        self.assertTrue(all(check['passed'] for check in report.checks))
 
     def test_missing_row_without_prior_value_is_zero_with_warning(self):
         report, rows = self.assemble([self.month(1, {}), self.month(2, {'USA': dict(SoDu=1, TrongHan=1)})])
@@ -330,6 +379,27 @@ class ReceivableAssembleTests(unittest.TestCase):
     def test_country_alias(self):
         self.assertEqual(country_name('  Thổ  Nhỹ Kỳ '), 'Thổ Nhĩ Kỳ')
         self.assertEqual(country_name('Hàn Quốc'), 'Hàn Quốc')
+
+
+class SalesAssembleTests(unittest.TestCase):
+    def test_missing_country_carries_forward_cumulative_sales(self):
+        report = Report(load_config('schemas.json'))
+        months = [
+            dict(month=1, countries={'Singapore': (1, 1.5, 1.5)},
+                 domestic=(0, 0, 0), onsite=(0, 0, 0), source='T1.xlsx'),
+            dict(month=2, countries={}, domestic=(0, 0, 0),
+                 onsite=(0, 0, 0), source='T2.xlsx'),
+        ]
+
+        sales.assemble_country_sales(months, report)
+        rows = {(row[0], row[1]): row[3] for row in report.rows['PhanTichTieuThu']}
+
+        self.assertEqual(rows['T2', 'Singapore'], 0)
+        self.assertEqual(rows['LK2T', 'Singapore'], 1500000)
+        self.assertTrue(any(
+            warning['code'] == 'SALES_COUNTRY_ROW_CARRIED_FORWARD'
+            for warning in report.warnings
+        ))
 
 
 @unittest.skipUnless(SOURCE.exists(), 'Cần bộ nguồn MonthlyReportingData.')
@@ -354,10 +424,11 @@ class ReceivableTests(unittest.TestCase):
     def test_full_grid_for_every_month(self):
         countries = {(c, k) for _, c, k in self.rows}
         self.assertEqual(countries, {('Việt Nam', 'Nội địa'), ('Xuất khẩu tại chỗ', 'Xuất khẩu'),
-                                     *((c, 'Xuất khẩu') for c in ('Hàn Quốc', 'Hồng Kông', 'Malaysia',
-                                                                  'Nhật Bản', 'Philippines', 'Trung Quốc',
-                                                                  'Singapore'))})
-        self.assertEqual(len(self.rows), 8 * len(countries))
+                                     *((c, 'Xuất khẩu') for c in ('Đài Loan', 'Hàn Quốc', 'Hồng Kông',
+                                                                  'Malaysia', 'Nhật Bản', 'Philippines',
+                                                                  'Trung Quốc', 'Singapore'))})
+        month_count = len(discover(SOURCE, 2026))
+        self.assertEqual(len(self.rows), month_count * len(countries))
         self.assertTrue(all(c['passed'] for c in self.report.checks))
 
     def test_values_in_dong_and_intermittent_countries(self):
